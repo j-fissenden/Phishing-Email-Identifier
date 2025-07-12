@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis Results</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-blue: #2196F3;
+            --secondary-blue: #BBDEFB;
+            --background: #F5F5F5;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--background);
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .results-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 25px;
+        }
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .model-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--primary-blue);
+        }
+        .chart-container {
+            height: 200px;
+            margin: 15px 0;
+        }
+        .url-list {
+            list-style: none;
+            padding: 0;
+        }
+        .url-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .truncated-link {
+            display: inline-block;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: bottom;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Analysis Results</h1>
+        <a href="/" style="color: var(--primary-blue); text-decoration: none;">← New Analysis</a>
+    </div>
+
+    <div class="results-container">
+        <div class="sidebar">
+            <h3>Email Details</h3>
+            <p><strong>From:</strong> {{ features.sender }}</p>
+            <p><strong>To:</strong> {{ features.receiver }}</p>
+            <p><strong>Subject:</strong> {{ features.subject }}</p>
+            
+            <h3 style="margin-top: 25px;">URL Analysis</h3>
+            <ul class="url-list">
+                {% for url, lookup in phishtank_results.items() %}
+                    <li class="url-item">                        
+                        <div class="url-info">
+                            <a href="{{ url }}" target="_blank" class="truncated-link" title="{{ url }}">
+                                {{ url[:25] }}{% if url|length > 25 %}...{% endif %}
+                            </a>
+                            <div class="url-status {{ lookup.status }}">
+                                {{ lookup.message }}
+                                {% if lookup.phish_detail %}
+                                    <a href="{{ lookup.phish_detail }}" target="_blank">(details)</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="model-grid">
+            {% for model, data in results.items() %}
+            <div class="model-card">
+                <h3>{{ model }}</h3>
+                <div class="chart-container">
+                    <canvas id="chart-{{ loop.index }}"></canvas>
+                </div>
+                <script>
+                    new Chart(document.getElementById('chart-{{ loop.index }}'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Legitimate', 'Phishing'],
+                            datasets: [{
+                                data: [{{ data.legitimate_confidence }}, {{ data.phishing_confidence }}],
+                                backgroundColor: ['#4CAF50', '#F44336'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'bottom' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: ctx => `${ctx.label}: ${ctx.parsed}%`
+                                    }
+                                }
+                            }
+                        }
+                    });
+                </script>
+                <div style="text-align: center;">
+                    <strong>Final Verdict:</strong> {{ data.prediction }}<br>
+                    <span style="color: {{ '#4CAF50' if data.prediction == 'Legitimate' else '#F44336' }};">
+                        Confidence: {{ data.phishing_confidence if data.prediction == 'Phishing' else data.legitimate_confidence }}%
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
